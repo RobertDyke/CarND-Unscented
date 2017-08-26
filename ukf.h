@@ -28,6 +28,12 @@ public:
   ///* state covariance matrix
   MatrixXd P_;
 
+  // Laser mesauremunt noise
+  MatrixXd R_laser_;
+
+  // Laser H matrix
+  MatrixXd H_laser_;
+
   ///* predicted sigma points matrix
   MatrixXd Xsig_pred_;
 
@@ -61,13 +67,16 @@ public:
   ///* State dimension
   int n_x_;
 
+
   ///* Augmented state dimension
   int n_aug_;
 
   ///* Sigma point spreading parameter
   double lambda_;
 
-
+  //NIS variables
+  double nis_laser_;
+  double nis_radar_;
   /**
    * Constructor
    */
@@ -102,6 +111,14 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+  void PredictRadarMeasurement(MatrixXd* ZSig_out, VectorXd* z_out, MatrixXd* S_out);
+  void UpdateRadarState(MatrixXd& Zsig, VectorXd& z_pred, MatrixXd& S, VectorXd& z);
+  double normalize_angle(double theta);
+  void PredictMeanAndCovariance(VectorXd* x_out, MatrixXd* P_out);
+  void AugmentedSigmaPoints(MatrixXd* Xsig_out);
+  void SigmaPointPrediction(double delta_t,MatrixXd& Xsig_aug, MatrixXd* Xsig_out);
+  double calculateNIS(VectorXd z, VectorXd z_pred, MatrixXd S);
+
 };
 
 #endif /* UKF_H */

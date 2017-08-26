@@ -2,8 +2,10 @@
 #include <iostream>
 #include "json.hpp"
 #include <math.h>
-#include "ukf.h"
 #include "tools.h"
+#include <fstream>
+#include "ukf.h"
+
 
 using namespace std;
 
@@ -15,10 +17,10 @@ using json = nlohmann::json;
 // else the empty string "" will be returned.
 std::string hasData(std::string s) {
   auto found_null = s.find("null");
-  auto b1 = s.find_first_of("[");
+  auto b1 = s.find_first_of("["); 
   auto b2 = s.find_first_of("]");
   if (found_null != std::string::npos) {
-    return "";
+    return ""; 
   }
   else if (b1 != std::string::npos && b2 != std::string::npos) {
     return s.substr(b1, b2 - b1 + 1);
@@ -34,8 +36,8 @@ int main()
   UKF ukf;
 
   // used to compute the RMSE later
-  Tools tools;
-  vector<VectorXd> estimations;
+  Tools tools; 
+  vector<VectorXd> estimations; 
   vector<VectorXd> ground_truth;
 
   h.onMessage([&ukf,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
@@ -48,7 +50,7 @@ int main()
 
       auto s = hasData(std::string(data));
       if (s != "") {
-      	
+      	 
         auto j = json::parse(s);
 
         std::string event = j[0].get<std::string>();
@@ -66,11 +68,13 @@ int main()
     	  string sensor_type;
     	  iss >> sensor_type;
 
+    	  float px;
+    	  float py;
+
     	  if (sensor_type.compare("L") == 0) {
       	  		meas_package.sensor_type_ = MeasurementPackage::LASER;
           		meas_package.raw_measurements_ = VectorXd(2);
-          		float px;
-      	  		float py;
+
           		iss >> px;
           		iss >> py;
           		meas_package.raw_measurements_ << px, py;
@@ -89,15 +93,23 @@ int main()
           		meas_package.raw_measurements_ << ro,theta, ro_dot;
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
+
+          		px =ro*cos(theta);
+          		py =ro*sin(theta);
           }
+
           float x_gt;
     	  float y_gt;
     	  float vx_gt;
     	  float vy_gt;
+    	  float yaw_gt;
+    	  float yawrate_gt;
     	  iss >> x_gt;
     	  iss >> y_gt;
     	  iss >> vx_gt;
     	  iss >> vy_gt;
+    	  iss >>yaw_gt;
+    	  iss >>yawrate_gt;
     	  VectorXd gt_values(4);
     	  gt_values(0) = x_gt;
     	  gt_values(1) = y_gt; 
@@ -109,13 +121,16 @@ int main()
     	  ukf.ProcessMeasurement(meas_package);    	  
 
     	  //Push the current estimated x,y positon from the Kalman filter's state vector
-
+    	  //std::cout<<"ukf.x_(0) = "<<ukf.x_(0)<<"\n";
+    	  //std::cout<<"ukf.x_(1) = "<<ukf.x_(1)<<"\n";
     	  VectorXd estimate(4);
 
     	  double p_x = ukf.x_(0);
     	  double p_y = ukf.x_(1);
     	  double v  = ukf.x_(2);
     	  double yaw = ukf.x_(3);
+
+
 
     	  double v1 = cos(yaw)*v;
     	  double v2 = sin(yaw)*v;
@@ -126,7 +141,8 @@ int main()
     	  estimate(3) = v2;
     	  
     	  estimations.push_back(estimate);
-
+    	  //std::cout<<"estimate = "<<estimate<<"\n";
+    	  //std::cout<<"gt_values = "<<gt_values<<"\n";
     	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
           json msgJson;
@@ -139,7 +155,7 @@ int main()
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  
+          //std::cout<<"RMSE "<<RMSE(0)<<" "<<RMSE(1)<<" "<<RMSE(2)<<" "<<RMSE(3)<<endl;
         }
       } else {
         
